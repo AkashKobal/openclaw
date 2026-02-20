@@ -1,5 +1,4 @@
 import type { TSchema } from "@sinclair/typebox";
-
 import {
   AgentEventSchema,
   AgentIdentityParamsSchema,
@@ -12,8 +11,21 @@ import {
 } from "./agent.js";
 import {
   AgentSummarySchema,
+  AgentsCreateParamsSchema,
+  AgentsCreateResultSchema,
+  AgentsDeleteParamsSchema,
+  AgentsDeleteResultSchema,
+  AgentsFileEntrySchema,
+  AgentsFilesGetParamsSchema,
+  AgentsFilesGetResultSchema,
+  AgentsFilesListParamsSchema,
+  AgentsFilesListResultSchema,
+  AgentsFilesSetParamsSchema,
+  AgentsFilesSetResultSchema,
   AgentsListParamsSchema,
   AgentsListResultSchema,
+  AgentsUpdateParamsSchema,
+  AgentsUpdateResultSchema,
   ModelChoiceSchema,
   ModelsListParamsSchema,
   ModelsListResultSchema,
@@ -25,6 +37,8 @@ import {
 } from "./agents-models-skills.js";
 import {
   ChannelsLogoutParamsSchema,
+  TalkConfigParamsSchema,
+  TalkConfigResultSchema,
   ChannelsStatusParamsSchema,
   ChannelsStatusResultSchema,
   TalkModeParamsSchema,
@@ -52,6 +66,16 @@ import {
   CronUpdateParamsSchema,
 } from "./cron.js";
 import {
+  DevicePairApproveParamsSchema,
+  DevicePairListParamsSchema,
+  DevicePairRemoveParamsSchema,
+  DevicePairRejectParamsSchema,
+  DevicePairRequestedEventSchema,
+  DevicePairResolvedEventSchema,
+  DeviceTokenRevokeParamsSchema,
+  DeviceTokenRotateParamsSchema,
+} from "./devices.js";
+import {
   ExecApprovalsGetParamsSchema,
   ExecApprovalsNodeGetParamsSchema,
   ExecApprovalsNodeSetParamsSchema,
@@ -60,15 +84,6 @@ import {
   ExecApprovalRequestParamsSchema,
   ExecApprovalResolveParamsSchema,
 } from "./exec-approvals.js";
-import {
-  DevicePairApproveParamsSchema,
-  DevicePairListParamsSchema,
-  DevicePairRejectParamsSchema,
-  DevicePairRequestedEventSchema,
-  DevicePairResolvedEventSchema,
-  DeviceTokenRevokeParamsSchema,
-  DeviceTokenRotateParamsSchema,
-} from "./devices.js";
 import {
   ConnectParamsSchema,
   ErrorShapeSchema,
@@ -103,6 +118,7 @@ import {
   NodePairVerifyParamsSchema,
   NodeRenameParamsSchema,
 } from "./nodes.js";
+import { PushTestParamsSchema, PushTestResultSchema } from "./push.js";
 import {
   SessionsCompactParamsSchema,
   SessionsDeleteParamsSchema,
@@ -111,6 +127,7 @@ import {
   SessionsPreviewParamsSchema,
   SessionsResetParamsSchema,
   SessionsResolveParamsSchema,
+  SessionsUsageParamsSchema,
 } from "./sessions.js";
 import { PresenceEntrySchema, SnapshotSchema, StateVersionSchema } from "./snapshot.js";
 import {
@@ -155,6 +172,8 @@ export const ProtocolSchemas: Record<string, TSchema> = {
   NodeInvokeResultParams: NodeInvokeResultParamsSchema,
   NodeEventParams: NodeEventParamsSchema,
   NodeInvokeRequestEvent: NodeInvokeRequestEventSchema,
+  PushTestParams: PushTestParamsSchema,
+  PushTestResult: PushTestResultSchema,
   SessionsListParams: SessionsListParamsSchema,
   SessionsPreviewParams: SessionsPreviewParamsSchema,
   SessionsResolveParams: SessionsResolveParamsSchema,
@@ -162,6 +181,7 @@ export const ProtocolSchemas: Record<string, TSchema> = {
   SessionsResetParams: SessionsResetParamsSchema,
   SessionsDeleteParams: SessionsDeleteParamsSchema,
   SessionsCompactParams: SessionsCompactParamsSchema,
+  SessionsUsageParams: SessionsUsageParamsSchema,
   ConfigGetParams: ConfigGetParamsSchema,
   ConfigSetParams: ConfigSetParamsSchema,
   ConfigApplyParams: ConfigApplyParamsSchema,
@@ -177,12 +197,27 @@ export const ProtocolSchemas: Record<string, TSchema> = {
   WizardStartResult: WizardStartResultSchema,
   WizardStatusResult: WizardStatusResultSchema,
   TalkModeParams: TalkModeParamsSchema,
+  TalkConfigParams: TalkConfigParamsSchema,
+  TalkConfigResult: TalkConfigResultSchema,
   ChannelsStatusParams: ChannelsStatusParamsSchema,
   ChannelsStatusResult: ChannelsStatusResultSchema,
   ChannelsLogoutParams: ChannelsLogoutParamsSchema,
   WebLoginStartParams: WebLoginStartParamsSchema,
   WebLoginWaitParams: WebLoginWaitParamsSchema,
   AgentSummary: AgentSummarySchema,
+  AgentsCreateParams: AgentsCreateParamsSchema,
+  AgentsCreateResult: AgentsCreateResultSchema,
+  AgentsUpdateParams: AgentsUpdateParamsSchema,
+  AgentsUpdateResult: AgentsUpdateResultSchema,
+  AgentsDeleteParams: AgentsDeleteParamsSchema,
+  AgentsDeleteResult: AgentsDeleteResultSchema,
+  AgentsFileEntry: AgentsFileEntrySchema,
+  AgentsFilesListParams: AgentsFilesListParamsSchema,
+  AgentsFilesListResult: AgentsFilesListResultSchema,
+  AgentsFilesGetParams: AgentsFilesGetParamsSchema,
+  AgentsFilesGetResult: AgentsFilesGetResultSchema,
+  AgentsFilesSetParams: AgentsFilesSetParamsSchema,
+  AgentsFilesSetResult: AgentsFilesSetResultSchema,
   AgentsListParams: AgentsListParamsSchema,
   AgentsListResult: AgentsListResultSchema,
   ModelChoice: ModelChoiceSchema,
@@ -214,6 +249,7 @@ export const ProtocolSchemas: Record<string, TSchema> = {
   DevicePairListParams: DevicePairListParamsSchema,
   DevicePairApproveParams: DevicePairApproveParamsSchema,
   DevicePairRejectParams: DevicePairRejectParamsSchema,
+  DevicePairRemoveParams: DevicePairRemoveParamsSchema,
   DeviceTokenRotateParams: DeviceTokenRotateParamsSchema,
   DeviceTokenRevokeParams: DeviceTokenRevokeParamsSchema,
   DevicePairRequestedEvent: DevicePairRequestedEventSchema,

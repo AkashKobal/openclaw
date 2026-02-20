@@ -1,5 +1,10 @@
+import type {
+  OpenClawConfig,
+  PluginRuntime,
+  ResolvedLineAccount,
+  RuntimeEnv,
+} from "openclaw/plugin-sdk";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { OpenClawConfig, PluginRuntime } from "openclaw/plugin-sdk";
 import { linePlugin } from "./channel.js";
 import { setLineRuntime } from "./runtime.js";
 
@@ -12,24 +17,27 @@ type LineRuntimeMocks = {
 
 function createRuntime(): { runtime: PluginRuntime; mocks: LineRuntimeMocks } {
   const writeConfigFile = vi.fn(async () => {});
-  const resolveLineAccount = vi.fn(({ cfg, accountId }: { cfg: OpenClawConfig; accountId?: string }) => {
-    const lineConfig = (cfg.channels?.line ?? {}) as {
-      tokenFile?: string;
-      secretFile?: string;
-      channelAccessToken?: string;
-      channelSecret?: string;
-      accounts?: Record<string, Record<string, unknown>>;
-    };
-    const entry =
-      accountId && accountId !== DEFAULT_ACCOUNT_ID
-        ? lineConfig.accounts?.[accountId] ?? {}
-        : lineConfig;
-    const hasToken =
-      Boolean((entry as any).channelAccessToken) || Boolean((entry as any).tokenFile);
-    const hasSecret =
-      Boolean((entry as any).channelSecret) || Boolean((entry as any).secretFile);
-    return { tokenSource: hasToken && hasSecret ? "config" : "none" };
-  });
+  const resolveLineAccount = vi.fn(
+    ({ cfg, accountId }: { cfg: OpenClawConfig; accountId?: string }) => {
+      const lineConfig = (cfg.channels?.line ?? {}) as {
+        tokenFile?: string;
+        secretFile?: string;
+        channelAccessToken?: string;
+        channelSecret?: string;
+        accounts?: Record<string, Record<string, unknown>>;
+      };
+      const entry =
+        accountId && accountId !== DEFAULT_ACCOUNT_ID
+          ? (lineConfig.accounts?.[accountId] ?? {})
+          : lineConfig;
+      const hasToken =
+        // oxlint-disable-next-line typescript/no-explicit-any
+        Boolean((entry as any).channelAccessToken) || Boolean((entry as any).tokenFile);
+      // oxlint-disable-next-line typescript/no-explicit-any
+      const hasSecret = Boolean((entry as any).channelSecret) || Boolean((entry as any).secretFile);
+      return { tokenSource: hasToken && hasSecret ? "config" : "none" };
+    },
+  );
 
   const runtime = {
     config: { writeConfigFile },
@@ -56,10 +64,27 @@ describe("linePlugin gateway.logoutAccount", () => {
         },
       },
     };
+    const runtimeEnv: RuntimeEnv = {
+      log: vi.fn(),
+      error: vi.fn(),
+      exit: vi.fn((code: number): never => {
+        throw new Error(`exit ${code}`);
+      }),
+    };
+    const resolveAccount = mocks.resolveLineAccount as unknown as (params: {
+      cfg: OpenClawConfig;
+      accountId?: string;
+    }) => ResolvedLineAccount;
+    const account = resolveAccount({
+      cfg,
+      accountId: DEFAULT_ACCOUNT_ID,
+    });
 
-    const result = await linePlugin.gateway.logoutAccount({
+    const result = await linePlugin.gateway!.logoutAccount!({
       accountId: DEFAULT_ACCOUNT_ID,
       cfg,
+      account,
+      runtime: runtimeEnv,
     });
 
     expect(result.cleared).toBe(true);
@@ -83,10 +108,27 @@ describe("linePlugin gateway.logoutAccount", () => {
         },
       },
     };
+    const runtimeEnv: RuntimeEnv = {
+      log: vi.fn(),
+      error: vi.fn(),
+      exit: vi.fn((code: number): never => {
+        throw new Error(`exit ${code}`);
+      }),
+    };
+    const resolveAccount = mocks.resolveLineAccount as unknown as (params: {
+      cfg: OpenClawConfig;
+      accountId?: string;
+    }) => ResolvedLineAccount;
+    const account = resolveAccount({
+      cfg,
+      accountId: "primary",
+    });
 
-    const result = await linePlugin.gateway.logoutAccount({
+    const result = await linePlugin.gateway!.logoutAccount!({
       accountId: "primary",
       cfg,
+      account,
+      runtime: runtimeEnv,
     });
 
     expect(result.cleared).toBe(true);

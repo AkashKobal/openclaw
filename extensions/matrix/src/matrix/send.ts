@@ -1,5 +1,4 @@
 import type { MatrixClient } from "@vector-im/matrix-bot-sdk";
-
 import type { PollInput } from "openclaw/plugin-sdk";
 import { getMatrixRuntime } from "../runtime.js";
 import { buildPollStartContent, M_POLL_START } from "./poll-types.js";
@@ -46,6 +45,7 @@ export async function sendMessageMatrix(
   const { client, stopOnDone } = await resolveMatrixClient({
     client: opts.client,
     timeoutMs: opts.timeoutMs,
+    accountId: opts.accountId,
   });
   try {
     const roomId = await resolveMatrixRoomId(client, to);
@@ -79,7 +79,7 @@ export async function sendMessageMatrix(
 
     let lastMessageId = "";
     if (opts.mediaUrl) {
-      const maxBytes = resolveMediaMaxBytes();
+      const maxBytes = resolveMediaMaxBytes(opts.accountId);
       const media = await getCore().media.loadWebMedia(opts.mediaUrl, maxBytes);
       const uploaded = await uploadMediaMaybeEncrypted(client, roomId, media.buffer, {
         contentType: media.contentType,
@@ -123,7 +123,9 @@ export async function sendMessageMatrix(
       const followupRelation = threadId ? relation : undefined;
       for (const chunk of textChunks) {
         const text = chunk.trim();
-        if (!text) continue;
+        if (!text) {
+          continue;
+        }
         const followup = buildTextContent(text, followupRelation);
         const followupEventId = await sendContent(followup);
         lastMessageId = followupEventId ?? lastMessageId;
@@ -131,7 +133,9 @@ export async function sendMessageMatrix(
     } else {
       for (const chunk of chunks.length ? chunks : [""]) {
         const text = chunk.trim();
-        if (!text) continue;
+        if (!text) {
+          continue;
+        }
         const content = buildTextContent(text, relation);
         const eventId = await sendContent(content);
         lastMessageId = eventId ?? lastMessageId;
@@ -163,6 +167,7 @@ export async function sendPollMatrix(
   const { client, stopOnDone } = await resolveMatrixClient({
     client: opts.client,
     timeoutMs: opts.timeoutMs,
+    accountId: opts.accountId,
   });
 
   try {
@@ -211,7 +216,9 @@ export async function sendReadReceiptMatrix(
   eventId: string,
   client?: MatrixClient,
 ): Promise<void> {
-  if (!eventId?.trim()) return;
+  if (!eventId?.trim()) {
+    return;
+  }
   const { client: resolved, stopOnDone } = await resolveMatrixClient({
     client,
   });

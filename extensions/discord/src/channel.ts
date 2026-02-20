@@ -16,6 +16,7 @@ import {
   migrateBaseNameToDefaultAccount,
   normalizeAccountId,
   normalizeDiscordMessagingTarget,
+  normalizeDiscordOutboundTarget,
   PAIRING_APPROVED_MESSAGE,
   resolveDiscordAccount,
   resolveDefaultDiscordAccountId,
@@ -26,17 +27,22 @@ import {
   type ChannelPlugin,
   type ResolvedDiscordAccount,
 } from "openclaw/plugin-sdk";
-
 import { getDiscordRuntime } from "./runtime.js";
 
 const meta = getChatChannelMeta("discord");
 
 const discordMessageActions: ChannelMessageActionAdapter = {
-  listActions: (ctx) => getDiscordRuntime().channel.discord.messageActions.listActions(ctx),
+  listActions: (ctx) =>
+    getDiscordRuntime().channel.discord.messageActions?.listActions?.(ctx) ?? [],
   extractToolSend: (ctx) =>
-    getDiscordRuntime().channel.discord.messageActions.extractToolSend(ctx),
-  handleAction: async (ctx) =>
-    await getDiscordRuntime().channel.discord.messageActions.handleAction(ctx),
+    getDiscordRuntime().channel.discord.messageActions?.extractToolSend?.(ctx) ?? null,
+  handleAction: async (ctx) => {
+    const ma = getDiscordRuntime().channel.discord.messageActions;
+    if (!ma?.handleAction) {
+      throw new Error("Discord message actions not available");
+    }
+    return ma.handleAction(ctx);
+  },
 };
 
 export const discordPlugin: ChannelPlugin<ResolvedDiscordAccount> = {
@@ -104,6 +110,8 @@ export const discordPlugin: ChannelPlugin<ResolvedDiscordAccount> = {
         .map((entry) => String(entry).trim())
         .filter(Boolean)
         .map((entry) => entry.toLowerCase()),
+    resolveDefaultTo: ({ cfg, accountId }) =>
+      resolveDiscordAccount({ cfg, accountId }).config.defaultTo?.trim() || undefined,
   },
   security: {
     resolveDmPolicy: ({ cfg, accountId, account }) => {
@@ -152,6 +160,12 @@ export const discordPlugin: ChannelPlugin<ResolvedDiscordAccount> = {
   },
   threading: {
     resolveReplyToMode: ({ cfg }) => cfg.channels?.discord?.replyToMode ?? "off",
+  },
+  agentPrompt: {
+    messageToolHints: () => [
+      "- Discord components: set `components` when sending messages to include buttons, selects, or v2 containers.",
+      "- Forms: add `components.modal` (title, fields). OpenClaw adds a trigger button and routes submissions as new messages.",
+    ],
   },
   messaging: {
     normalizeTarget: normalizeDiscordMessagingTarget,
@@ -280,30 +294,32 @@ export const discordPlugin: ChannelPlugin<ResolvedDiscordAccount> = {
     chunker: null,
     textChunkLimit: 2000,
     pollMaxOptions: 10,
-    sendText: async ({ to, text, accountId, deps, replyToId }) => {
-      const send =
-        deps?.sendDiscord ?? getDiscordRuntime().channel.discord.sendMessageDiscord;
+    resolveTarget: ({ to }) => normalizeDiscordOutboundTarget(to),
+    sendText: async ({ to, text, accountId, deps, replyToId, silent }) => {
+      const send = deps?.sendDiscord ?? getDiscordRuntime().channel.discord.sendMessageDiscord;
       const result = await send(to, text, {
         verbose: false,
         replyTo: replyToId ?? undefined,
         accountId: accountId ?? undefined,
+        silent: silent ?? undefined,
       });
       return { channel: "discord", ...result };
     },
-    sendMedia: async ({ to, text, mediaUrl, accountId, deps, replyToId }) => {
-      const send =
-        deps?.sendDiscord ?? getDiscordRuntime().channel.discord.sendMessageDiscord;
+    sendMedia: async ({ to, text, mediaUrl, accountId, deps, replyToId, silent }) => {
+      const send = deps?.sendDiscord ?? getDiscordRuntime().channel.discord.sendMessageDiscord;
       const result = await send(to, text, {
         verbose: false,
         mediaUrl,
         replyTo: replyToId ?? undefined,
         accountId: accountId ?? undefined,
+        silent: silent ?? undefined,
       });
       return { channel: "discord", ...result };
     },
-    sendPoll: async ({ to, poll, accountId }) =>
+    sendPoll: async ({ to, poll, accountId, silent }) =>
       await getDiscordRuntime().channel.discord.sendPollDiscord(to, poll, {
         accountId: accountId ?? undefined,
+        silent: silent ?? undefined,
       }),
   },
   status: {
@@ -334,7 +350,9 @@ export const discordPlugin: ChannelPlugin<ResolvedDiscordAccount> = {
         cfg,
         accountId: account.accountId,
       });
-      if (!channelIds.length && unresolvedChannels === 0) return undefined;
+      if (!channelIds.length && unresolvedChannels === 0) {
+        return undefined;
+      }
       const botToken = account.token?.trim();
       if (!botToken) {
         return {
@@ -386,7 +404,9 @@ export const discordPlugin: ChannelPlugin<ResolvedDiscordAccount> = {
           includeApplication: true,
         });
         const username = probe.ok ? probe.bot?.username?.trim() : null;
-        if (username) discordBotLabel = ` (@${username})`;
+        if (username) {
+          discordBotLabel = ` (@${username})`;
+        }
         ctx.setStatus({
           accountId: account.accountId,
           bot: probe.bot,

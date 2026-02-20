@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { ApiContributor, Entry, MapConfig, User } from "./update-clawtributors.types.js";
@@ -193,7 +193,7 @@ for (const [login, lines] of linesByLogin.entries()) {
   }
   let user = apiByLogin.get(login);
   if (!user) {
-    user = fetchUser(login);
+    user = fetchUser(login) || undefined;
   }
   if (user) {
     const contributions = contributionsByLogin.get(login) ?? 0;
@@ -229,7 +229,7 @@ const lines: string[] = [];
 for (let i = 0; i < entries.length; i += PER_LINE) {
   const chunk = entries.slice(i, i + PER_LINE);
   const parts = chunk.map((entry) => {
-    return `<a href=\"${entry.html_url}\"><img src=\"${entry.avatar_url}\" width=\"48\" height=\"48\" alt=\"${entry.display}\" title=\"${entry.display}\"/></a>`;
+    return `<a href="${entry.html_url}"><img src="${entry.avatar_url}" width="48" height="48" alt="${entry.display}" title="${entry.display}"/></a>`;
   });
   lines.push(`  ${parts.join(" ")}`);
 }
@@ -243,7 +243,7 @@ if (start === -1 || end === -1) {
   throw new Error("README.md missing clawtributors block");
 }
 
-const next = `${readme.slice(0, start)}<p align=\"left\">\n${block}${readme.slice(end)}`;
+const next = `${readme.slice(0, start)}<p align="left">\n${block}${readme.slice(end)}`;
 writeFileSync(readmePath, next);
 
 console.log(`Updated README clawtributors: ${entries.length} entries`);
@@ -256,7 +256,9 @@ function run(cmd: string): string {
   }).trim();
 }
 
+// oxlint-disable-next-line typescript/no-explicit-any
 function parsePaginatedJson(raw: string): any[] {
+  // oxlint-disable-next-line typescript/no-explicit-any
   const items: any[] = [];
   for (const line of raw.split("\n")) {
     if (!line.trim()) {
@@ -288,6 +290,27 @@ function parseCount(value: string): number {
   return /^\d+$/.test(value) ? Number(value) : 0;
 }
 
+function isValidLogin(login: string): boolean {
+  if (!/^[A-Za-z0-9-]{1,39}$/.test(login)) {
+    return false;
+  }
+  if (login.startsWith("-") || login.endsWith("-")) {
+    return false;
+  }
+  if (login.includes("--")) {
+    return false;
+  }
+  return true;
+}
+
+function normalizeLogin(login: string | null): string | null {
+  if (!login) {
+    return null;
+  }
+  const trimmed = login.trim();
+  return isValidLogin(trimmed) ? trimmed : null;
+}
+
 function normalizeAvatar(url: string): string {
   if (!/^https?:/i.test(url)) {
     return url;
@@ -305,8 +328,12 @@ function isGhostAvatar(url: string): boolean {
 }
 
 function fetchUser(login: string): User | null {
+  const normalized = normalizeLogin(login);
+  if (!normalized) {
+    return null;
+  }
   try {
-    const data = execSync(`gh api users/${login}`, {
+    const data = execFileSync("gh", ["api", `users/${normalized}`], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -329,48 +356,48 @@ function resolveLogin(
   email: string | null,
   apiByLogin: Map<string, User>,
   nameToLogin: Record<string, string>,
-  emailToLogin: Record<string, string>
+  emailToLogin: Record<string, string>,
 ): string | null {
   if (email && emailToLogin[email]) {
-    return emailToLogin[email];
+    return normalizeLogin(emailToLogin[email]);
   }
 
   if (email && name) {
     const guessed = guessLoginFromEmailName(name, email, apiByLogin);
     if (guessed) {
-      return guessed;
+      return normalizeLogin(guessed);
     }
   }
 
   if (email && email.endsWith("@users.noreply.github.com")) {
     const local = email.split("@", 1)[0];
     const login = local.includes("+") ? local.split("+")[1] : local;
-    return login || null;
+    return normalizeLogin(login);
   }
 
   if (email && email.endsWith("@github.com")) {
     const login = email.split("@", 1)[0];
     if (apiByLogin.has(login.toLowerCase())) {
-      return login;
+      return normalizeLogin(login);
     }
   }
 
   const normalized = normalizeName(name);
   if (nameToLogin[normalized]) {
-    return nameToLogin[normalized];
+    return normalizeLogin(nameToLogin[normalized]);
   }
 
   const compact = normalized.replace(/\s+/g, "");
   if (nameToLogin[compact]) {
-    return nameToLogin[compact];
+    return normalizeLogin(nameToLogin[compact]);
   }
 
   if (apiByLogin.has(normalized)) {
-    return normalized;
+    return normalizeLogin(normalized);
   }
 
   if (apiByLogin.has(compact)) {
-    return compact;
+    return normalizeLogin(compact);
   }
 
   return null;
@@ -379,7 +406,7 @@ function resolveLogin(
 function guessLoginFromEmailName(
   name: string,
   email: string,
-  apiByLogin: Map<string, User>
+  apiByLogin: Map<string, User>,
 ): string | null {
   const local = email.split("@", 1)[0]?.trim();
   if (!local) {
@@ -410,7 +437,7 @@ function normalizeIdentifier(value: string): string {
 }
 
 function parseReadmeEntries(
-  content: string
+  content: string,
 ): Array<{ display: string; html_url: string; avatar_url: string }> {
   const start = content.indexOf('<p align="left">');
   const end = content.indexOf("</p>", start);
@@ -419,7 +446,7 @@ function parseReadmeEntries(
   }
   const block = content.slice(start, end);
   const entries: Array<{ display: string; html_url: string; avatar_url: string }> = [];
-  const linked = /<a href=\"([^\"]+)\"><img src=\"([^\"]+)\"[^>]*alt=\"([^\"]+)\"[^>]*>/g;
+  const linked = /<a href="([^"]+)"><img src="([^"]+)"[^>]*alt="([^"]+)"[^>]*>/g;
   for (const match of block.matchAll(linked)) {
     const [, href, src, alt] = match;
     if (!href || !src || !alt) {
@@ -427,7 +454,7 @@ function parseReadmeEntries(
     }
     entries.push({ html_url: href, avatar_url: src, display: alt });
   }
-  const standalone = /<img src=\"([^\"]+)\"[^>]*alt=\"([^\"]+)\"[^>]*>/g;
+  const standalone = /<img src="([^"]+)"[^>]*alt="([^"]+)"[^>]*>/g;
   for (const match of block.matchAll(standalone)) {
     const [, src, alt] = match;
     if (!src || !alt) {
@@ -442,7 +469,7 @@ function parseReadmeEntries(
 }
 
 function loginFromUrl(url: string): string | null {
-  const match = /^https?:\/\/github\.com\/([^\/?#]+)/i.exec(url);
+  const match = /^https?:\/\/github\.com\/([^/?#]+)/i.exec(url);
   if (!match) {
     return null;
   }
@@ -458,7 +485,11 @@ function fallbackHref(value: string): string {
   return encoded ? `https://github.com/search?q=${encoded}` : "https://github.com";
 }
 
-function pickDisplay(baseName: string | null | undefined, login: string, existing?: string): string {
+function pickDisplay(
+  baseName: string | null | undefined,
+  login: string,
+  existing?: string,
+): string {
   const key = login.toLowerCase();
   if (displayName[key]) {
     return displayName[key];

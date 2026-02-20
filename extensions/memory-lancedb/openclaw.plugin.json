@@ -25,6 +25,12 @@
     "autoRecall": {
       "label": "Auto-Recall",
       "help": "Automatically inject relevant memories into context"
+    },
+    "captureMaxChars": {
+      "label": "Capture Max Chars",
+      "help": "Maximum message length eligible for auto-capture",
+      "advanced": true,
+      "placeholder": "500"
     }
   },
   "configSchema": {
@@ -40,15 +46,10 @@
           },
           "model": {
             "type": "string",
-            "enum": [
-              "text-embedding-3-small",
-              "text-embedding-3-large"
-            ]
+            "enum": ["text-embedding-3-small", "text-embedding-3-large"]
           }
         },
-        "required": [
-          "apiKey"
-        ]
+        "required": ["apiKey"]
       },
       "dbPath": {
         "type": "string"
@@ -58,10 +59,13 @@
       },
       "autoRecall": {
         "type": "boolean"
+      },
+      "captureMaxChars": {
+        "type": "number",
+        "minimum": 100,
+        "maximum": 10000
       }
     },
-    "required": [
-      "embedding"
-    ]
+    "required": ["embedding"]
   }
 }
